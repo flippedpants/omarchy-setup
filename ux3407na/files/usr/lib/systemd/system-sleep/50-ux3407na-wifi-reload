@@ -1,0 +1,44 @@
+#!/bin/sh
+# systemd-sleep hook: unload the ath12k Wi-Fi driver before suspend, load it again after wake.
+#
+# Why: on the ASUS Zenbook A14 UX3407NA (QCC2072 Wi-Fi, kernel 7.3.0-7x-omarchy) a suspend that
+# really sleeps (minutes, not seconds) leaves the card unable to restart in place
+# ("failed to start mhi: -110", "Hardware became unavailable upon resume") and Wi-Fi stays dead
+# until reboot. A fresh driver load powers the card up from scratch instead.
+# See ~/work/kernel-investigation/REPORT.md (addendum 2026-11-22).
+#
+# Installed at: /usr/lib/systemd/system-sleep/50-ux3407na-wifi-reload
+# Disable temporarily: sudo touch /etc/ux3407na-wifi-reload.disable
+# Remove:              sudo rm /usr/lib/systemd/system-sleep/50-ux3407na-wifi-reload
+# Its messages appear in: journalctl -b -t systemd-sleep  (and as "ux3407na-wifi-reload:" lines)
+
+TAG=ux3407na-wifi-reload
+MARK=/run/$TAG.unloaded
+
+[ -e /etc/$TAG.disable ] && exit 0
+
+case "$1/$2" in
+  pre/*)
+    rm -f "$MARK"
+    if grep -q '^ath12k_wifi7 ' /proc/modules; then
+      if timeout 20 modprobe -r ath12k_wifi7 ath12k; then
+        touch "$MARK"
+        echo "$TAG: unloaded ath12k_wifi7 before $2"
+      else
+        echo "$TAG: could not unload ath12k_wifi7 before $2 (rc=$?), sleeping with it loaded"
+      fi
+    fi
+    ;;
+  post/*)
+    # Reload if we unloaded it, or if it is missing for any other reason.
+    if [ -e "$MARK" ] || ! grep -q '^ath12k_wifi7 ' /proc/modules; then
+      if timeout 30 modprobe ath12k_wifi7; then
+        echo "$TAG: loaded ath12k_wifi7 after $2"
+      else
+        echo "$TAG: modprobe ath12k_wifi7 failed after $2 (rc=$?)"
+      fi
+      rm -f "$MARK"
+    fi
+    ;;
+esac
+exit 0

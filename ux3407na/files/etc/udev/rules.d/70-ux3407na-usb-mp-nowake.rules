@@ -1,0 +1,7 @@
+# ASUS Zenbook A14 UX3407NA: stop spurious wakeups from the multiport USB controller.
+# Its port 2 D+ wake IRQ (dp_hs_phy_2) fires ~1.6 s after every s2idle entry with nothing
+# connected, which caused the lid-closed suspend/wake loop. Cost: a device plugged into that
+# controller's ports can no longer wake the laptop. Lid, power key, keyboard and touchpad are unaffected.
+# See ~/work/kernel-investigation/REPORT.md. Remove this file and reboot to undo.
+# "bind" is matched too so the setting is reapplied after the dwc3-qcom driver probes.
+ACTION=="add|bind", SUBSYSTEM=="platform", KERNEL=="a400000.usb", ATTR{power/wakeup}="disabled"
