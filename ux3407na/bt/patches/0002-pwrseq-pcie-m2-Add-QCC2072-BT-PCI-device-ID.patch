@@ -1,0 +1,18 @@
+Subject: [PATCH] power: sequencing: pwrseq-pcie-m2: Add QCC2072 BT PCI device ID
+
+Upstream: qcom-next bc2b6da4d0b5 ("FROMGIT: power: sequencing: pwrseq-pcie-m2: Add QCC2072
+BT PCI device ID"); v2 patch 3/6 of "Bluetooth: qca: enable QCC2072". Dropped from
+pwrseq/for-next until the qcom,qcc2072-bt binding is documented.
+With it, the M.2 E-key connector creates the Bluetooth serdev for PCI 17cb:1112.
+---
+--- a/drivers/power/sequencing/pwrseq-pcie-m2.c
++++ b/drivers/power/sequencing/pwrseq-pcie-m2.c
+@@ -202,6 +202,8 @@
+ 	/* Qualcomm's default subsystem ID, used by the Surface Laptop 8 */
+ 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x1107, PCI_VENDOR_ID_QCOM, 0x1107),
+ 	  .driver_data = (kernel_ulong_t)"qcom,wcn7850-bt" },
++	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x1112),
++	  .driver_data = (kernel_ulong_t)"qcom,qcc2072-bt" },
+ 	{ } /* Sentinel */
+ };
+ 

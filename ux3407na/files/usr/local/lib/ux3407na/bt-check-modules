@@ -1,0 +1,23 @@
+#!/bin/sh
+# Run by pacman after linux-omarchy changes (95-ux3407na-bt.hook).
+# - Removes QCC2072 Bluetooth module overrides left behind for kernels that are no longer installed.
+# - Warns when an installed kernel has no override yet (Bluetooth will be missing on it until rebuilt).
+# Never builds anything itself (no network or compiling inside a pacman transaction).
+REPO=@REPO@
+for d in /usr/lib/modules/*/; do
+  k=$(basename "$d")
+  case "$k" in *-omarchy) ;; *) continue ;; esac
+  if [ ! -d "$d/kernel" ]; then
+    if [ -d "$d/updates/ux3407na-bt" ]; then
+      rm -rf "$d/updates/ux3407na-bt"
+      rmdir "$d/updates" "$d" 2>/dev/null
+      echo "ux3407na-bt: removed Bluetooth modules of uninstalled kernel $k"
+    fi
+    continue
+  fi
+  if [ ! -e "$d/updates/ux3407na-bt/btqca.ko" ]; then
+    echo "ux3407na-bt: kernel $k has no QCC2072 Bluetooth modules; Bluetooth will be off on it."
+    echo "ux3407na-bt:   build them (as your user, before or after rebooting): $REPO/bt/build-modules.sh $k && $REPO/install.sh"
+  fi
+done
+exit 0

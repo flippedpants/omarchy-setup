@@ -414,3 +414,60 @@ Made persistent with `/etc/udev/rules.d/70-ux3407na-usb-mp-nowake.rules` (source
 The USB-A port is multiport **port 1**: an HP USB flash drive enumerated as `usb 1-1` on `a400000.usb` at 16:27:45. The false-wake port is port 2 (`dp_hs_phy_2`), which is not the USB-A port and has nothing enumerated on it.
 
 At 16:27:59 the flash drive disconnected. Re-enumeration then failed at full speed with `error -71` (EPROTO), including after a port power-cycle. This port problem is not caused by the wakeup setting, because `power/wakeup` only arms the sleep wake IRQs.
+
+## Addendum 2026-11-25: Bluetooth (QCC2072)
+
+**Evidence.** On the old test tree (`qcom,wcn7850-bt`, kernel 7.3-72) Bluetooth worked on ROM code only. In boots 08593506 and 1244c923, hci0 came up (SOC 0x40292100, ROM 0x101) and A2DP audio streamed. btqca requested `qca/hmtbtfw11.tlv` (-2), the WCN7850 name. QCC2072's files are `ornbtfw11.tlv`, `ornnv11.bin` and `ornbcscal11.bin`, all installed. The stock tree creates no Bluetooth device.
+
+Kernel 7.3-77 already has two of the pieces:
+- The M.2 E-key serdev creation in `pwrseq-pcie-m2`.
+- Manivannan's hci_qca M.2 pwrseq support (Omarchy patch 2379).
+
+It lacks two upstream patches that are not merged as of 2026-11-25:
+- QCC2072 support in btqca/hci_qca: v2 2/6, qcom-next `4963fd8a20b1`.
+- PCI ID 17cb:1112 → `qcom,qcc2072-bt` in pwrseq-pcie-m2: v2 3/6, qcom-next `bc2b6da4d0b5`. It was dropped from pwrseq/for-next because the binding is undocumented.
+
+Patches 1–3 of this series plus Manivannan's are reported working on the Zenbook A16 UX3607OA (Tested-by on 2026-11-10). That report also saw a TLV download timeout (-110) in about 1 boot in 5.
+
+**Built and installed.** I rebuilt `btqca`, `hci_uart` and `pwrseq-pcie-m2` out of tree for 7.3.0-77-omarchy from the exact package source:
+- linux-7.3 tarball, sha256 matching the PKGBUILD, plus the 582 Omarchy patches from omarchy-pkgs commit `8c387fae`.
+- Patch 0001 needed a manual rebase: two `case` labels in `qca_serdev_probe`.
+
+**Source check.** The unmodified `btusb` and `pwrseq-pcie-m2` builds have the same defined and imported symbols as the packaged ones. `btqca` and `hci_uart` differ only by the QCC2072 additions.
+
+The modules are installed to `/usr/lib/modules/7.3.0-77-omarchy/updates/ux3407na-bt/`, so the stock kernel, stock device tree and stock UKI are unchanged. Everything is in `omarchy-setup/ux3407na/bt/`, including `build-modules.sh` and a pacman reminder hook.
+
+**Rollback:** `./uninstall.sh --bt`, then reboot.
+
+**Status:** not yet verified on a boot.
+
+## Addendum 2026-11-25 (later): Bluetooth verified on the stock boot entry
+
+- Boots `324d74be` (-2) and `46898b40` (0): `setting up qcc2072`, SOC 0x40292100 ROM 0x101, `Downloading qca/ornbtfw11.tlv`, `ornnv11.bin`, `ornbcscal11.bin` → `QCA FW build version: BTFW.ORNE.1.1.0-00355-PATCH-1_DEF … CSCAL_MTP_260210`, `QCA setup on UART is completed`. No `Failed to send TLV segment` on either boot (2/2 so far).
+- The `ornnv11.b17` / `ornbcscal11.b17` `-2` lines are normal: the driver tries a board-specific file first and falls back to the generic `.bin`.
+- Each Bluetooth power-on re-downloads the firmware (≈1.6 s); seen at +58.65 s in boot 0 after `rfkill unblock bluetooth`.
+- Sony WH-CH520 paired and connected: card profile `a2dp-sink`, codec AAC; HFP/HSP UUIDs offered.
+- `verify.sh`: all ok.
+- The `clk-branch.c:87` WARNINGs (display clocks: udev-worker/plymouthd/Hyprland in `drm_mode_getconnector`) occur in every earlier boot too (2–47 per boot); not related to the Bluetooth modules.
+- Open: boot -2 has no shutdown messages after +140 s, and boot -1 (`30de7ef4`) lasted about 8 s. Ask the user whether they forced a power-off. If not, this fits the unexplained early resets.
+- Still to test: lid-closed sleep ≥3 min with Bluetooth on (BT reconnect, no new wake source); TLV -110 over more boots; HFP microphone.
+
+## Addendum 2026-11-25: random resets: survey of 48 boots, and logging change
+
+- **Boots that died 7–16 s after starting:** 14 (-45 -44 -42 -41 -40 -34 -26 -23 -17 -14 -13 -8 -6 -1).
+  - Each one's last persisted record is the journald flush to /var, or kernel messages from just before it (PCIe 0004 host bridge, zram, remoteproc soccp/cdsp available).
+  - A normal boot always followed.
+- **Boots that ended without shutdown records 28 s to 8 min into use:** about 15 (-43 -37 -35 -33 -31 -29 -28 -21 -19 -18 -12 -10 -7 -5 -2), plus -39 (2.6 h).
+  - Some of these may be power-button presses by the user.
+  - Boots that ended inside `PM: suspend entry` (-46 -36 -32 -24 -20) are probably forced power-offs from the old suspend hangs.
+- **Last kernel messages before a reset:** nothing in common (Wi-Fi association, the Chrome wireless-extensions warning, the BNEP init). There are no oopses or warnings.
+- **Seen on kernels 7.3.0-72, -75 and -77,** on both the test and stock trees, so it predates the Bluetooth modules. The user confirms random reboots "before too".
+- **The reset comes from below Linux.** `kernel.panic=0` (a Linux panic would hang, not reboot), qcom_wdt is `inactive`, systemd RuntimeWatchdog is 0, and /var/lib/systemd/pstore is empty. That points to firmware, hypervisor or TZ, a secure watchdog or bus error, or PMIC (power or thermal).
+  - This is inferred: the actual reset reason is unknown.
+- **Logging gap:** journald used the default `SyncIntervalSec=5min`, so up to 5 min before each reset was lost. Installed `/etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf` (`SyncIntervalSec=5s`; repo `files/`) and restarted journald.
+  - Remove it later with `./uninstall.sh --reset-debug`.
+- **Next:**
+  - After the next unexpected reboot, read `journalctl -b -1` (the final seconds should now be on disk).
+  - Read the PMIC PON/fault reason registers as root (first confirm the PMK8550-class PON register layout).
+  - Check for a BIOS newer than UX3407NA.316.
+  - Ask the user whether the resets happen on AC or on battery.

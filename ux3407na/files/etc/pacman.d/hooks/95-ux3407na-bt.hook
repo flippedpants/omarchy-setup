@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = linux-omarchy
+
+[Action]
+Description = Checking UX3407NA QCC2072 Bluetooth modules...
+When = PostTransaction
+Exec = /usr/local/lib/ux3407na/bt-check-modules

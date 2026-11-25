@@ -20,6 +20,29 @@ else echo "PROBLEM   USB multiport wakeup: $W (expected disabled)"; ok=1; fi
 
 grep -q '^ath12k_wifi7 ' /proc/modules && echo "ok        Wi-Fi driver ath12k_wifi7 loaded" || { echo "PROBLEM   ath12k_wifi7 not loaded"; ok=1; }
 
+# Bluetooth (QCC2072 modules from bt/build-modules.sh)
+K=$(uname -r)
+check_file "$HERE/files/etc/pacman.d/hooks/95-ux3407na-bt.hook" /etc/pacman.d/hooks/95-ux3407na-bt.hook
+[ -x /usr/local/lib/ux3407na/bt-check-modules ] && echo "ok        /usr/local/lib/ux3407na/bt-check-modules" || { echo "MISSING   /usr/local/lib/ux3407na/bt-check-modules"; ok=1; }
+for m in btqca hci_uart pwrseq-pcie-m2; do
+  inst=/usr/lib/modules/$K/updates/ux3407na-bt/$m.ko
+  if [ ! -e "$inst" ]; then echo "MISSING   $inst (run bt/build-modules.sh, then ./install.sh)"; ok=1
+  elif [ -e "$HERE/bt/modules/$K/$m.ko" ] && ! cmp -s "$HERE/bt/modules/$K/$m.ko" "$inst"; then echo "DIFFERENT $inst (run ./install.sh)"; ok=1
+  else echo "ok        $inst"; fi
+done
+if [ "$(readlink -f "$(modinfo -n btqca 2>/dev/null)")" = "/usr/lib/modules/$K/updates/ux3407na-bt/btqca.ko" ]; then echo "ok        modprobe picks the QCC2072 btqca"
+else echo "PROBLEM   modprobe picks $(modinfo -n btqca 2>/dev/null) (run: sudo depmod $K)"; ok=1; fi
+if [ -e /sys/class/bluetooth/hci0 ]; then
+  echo "ok        Bluetooth adapter hci0 present"
+  fw=$(journalctl -b -k -q --no-pager 2>/dev/null | grep -oE 'QCA Downloading qca/[a-z0-9._]+|QCA Failed to request file: [^ ]+|Failed to send TLV segment \(-?[0-9]+\)' | sort | uniq -c | tr '\n' ';')
+  echo "          firmware this boot: ${fw:-no QCA download lines}"
+elif grep -q '^btqca ' /proc/modules; then echo "PROBLEM   btqca loaded but no hci0 (firmware download failed? see: journalctl -b -k | grep -i bluetooth)"; ok=1
+else echo "NOTE      no Bluetooth adapter this boot (modules installed after boot? reboot)"; ok=1; fi
+
+check_file "$HERE/files/etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf" /etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf
+[ -e /etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf ] &&
+  echo "          journald sync interval now: $(systemd-analyze cat-config systemd/journald.conf 2>/dev/null | grep -E '^SyncIntervalSec' | tail -1)"
+
 echo
 echo "This boot: $(journalctl -b -k -q --no-pager 2>/dev/null | grep -c 'PM: suspend entry') suspends," \
      "$(journalctl -b -k -q --no-pager 2>/dev/null | grep -c 'failed to start mhi') Wi-Fi resume failures," \
