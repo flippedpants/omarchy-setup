@@ -45,12 +45,20 @@ After closing the lid for a few minutes and opening it, expect: all lines `ok`, 
 
 ## Bluetooth after a kernel update
 
-The Bluetooth modules are built for one exact kernel. When `linux-omarchy` updates, the pacman hook prints which kernel has no Bluetooth modules yet. Bluetooth is simply off on that kernel until you rebuild; nothing else is affected. To rebuild (works before or after rebooting into the new kernel, as long as its `linux-omarchy-headers` are installed):
+The Bluetooth modules are built for one exact kernel. When `linux-omarchy` updates, the pacman hook prints a line like this near the end of `omarchy update`:
+
+```
+ux3407na-bt: kernel 7.3.6-2-omarchy has no QCC2072 Bluetooth modules; Bluetooth will be off on it.
+```
+
+Bluetooth is simply off on that kernel until you rebuild; nothing else is affected (Wi-Fi, sleep and the other fixes don't depend on the kernel version). To rebuild, run these from any folder, before or after rebooting into the new kernel (its `linux-omarchy-headers` must be installed, which `omarchy update` does):
 
 ```sh
-bt/build-modules.sh 7.3.0-78-omarchy   # the version the hook printed; default is the running kernel
-./install.sh
+~/work/omarchy-setup/ux3407na/bt/build-modules.sh 7.3.6-2-omarchy   # the version the hook printed (~1 min, as your user)
+~/work/omarchy-setup/ux3407na/install.sh                            # asks for your sudo password
 ```
+
+(These paths assume the repo is at `~/work/omarchy-setup`; the hook message always prints the real path.) If you missed the message: `ls /usr/lib/modules` lists the installed kernels (the name to use is the folder name, e.g. `7.3.6-2-omarchy`). After rebooting into the new kernel you can also leave the version out, and it defaults to the running kernel (`uname -r`). Then reboot (if you haven't yet) and run `~/work/omarchy-setup/ux3407na/verify.sh`.
 
 `build-modules.sh` fetches the exact linux-omarchy source for that version (kernel.org tarball checked against the PKGBUILD sha256 + Omarchy's patches from omarchy-pkgs; it never runs the PKGBUILD), applies `bt/patches/`, and builds only the three modules against the installed headers. It refuses to build once the kernel's own btqca supports QCC2072, which means Omarchy or upstream caught up and the override can go (`./uninstall.sh --bt`). If a patch stops applying to a new kernel it fails with a clear message and nothing is installed.
 

@@ -471,3 +471,18 @@ The modules are installed to `/usr/lib/modules/7.3.0-77-omarchy/updates/ux3407na
   - Read the PMIC PON/fault reason registers as root (first confirm the PMK8550-class PON register layout).
   - Check for a BIOS newer than UX3407NA.316.
   - Ask the user whether the resets happen on AC or on battery.
+
+## Addendum 2026-11-25 (evening): kernel update 7.3-80 → 7.3.6-2
+
+- `omarchy update` installed linux-omarchy 7.3-80 (17:53). The `95-ux3407na-bt` hook printed the rebuild reminder, as designed.
+  - A second update at 22:05 replaced it with 7.3.6-2. The kernel release scheme changed from `7.3.0-NN-omarchy` to `7.3.6-2-omarchy`, a stable point release.
+  - The 7.3-80 build attempt failed only because its headers were removed mid-build by the second update.
+- `bt/build-modules.sh 7.3.6-2-omarchy` worked:
+  - omarchy-pkgs commit e55633abd5ca, `linux-7.3.6.tar.xz` matching the sha256;
+  - 576 Omarchy patches, then both `bt/patches` applied without changes;
+  - vermagic `7.3.6-2-omarchy`.
+- Installed with `install.sh`. `modinfo -k 7.3.6-2-omarchy -n` resolves all three modules to `updates/ux3407na-bt/`.
+- Bluetooth across sleep on 7.3.0-77:
+  - Suspend 16:28 → 16:46 (18 min): the WH-CH520 A2DP stream reconnected at 16:49.
+  - Suspend 18:57 → 22:01 (3 h): hci0 is still Powered after resume.
+  - 0 Wi-Fi failures. Wake IRQ is `lid`.
