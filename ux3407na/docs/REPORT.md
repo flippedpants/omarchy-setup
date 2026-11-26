@@ -486,3 +486,32 @@ The modules are installed to `/usr/lib/modules/7.3.0-77-omarchy/updates/ux3407na
   - Suspend 16:28 → 16:46 (18 min): the WH-CH520 A2DP stream reconnected at 16:49.
   - Suspend 18:57 → 22:01 (3 h): hci0 is still Powered after resume.
   - 0 Wi-Fi failures. Wake IRQ is `lid`.
+
+## Addendum 2026-11-26: reset on 7.3.6-2, and the PMIC reset log
+
+- **Boots:** `46898b40` (7.3.0-77) ended with a clean reboot at 22:15:01. Then:
+  - `551a33d8` (first boot on 7.3.6-2) reset about 85–90 s in.
+  - `1de38278` reset about 10 s in.
+  - `1f9125f7` is running now.
+- **Last record of `551a33d8`:** [85.709] `systemd-timedated.service: Deactivated successfully`. With `SyncIntervalSec=5s` the reset came within about 5 s of it.
+  - Nothing unusual in the last minute: Zen browser started at 54 s, the wireless-extensions warning at 74.8 s, then idle.
+- **Browser correlation ruled out:** the browser Wi-Fi warning appears in long-surviving boots too, and is absent in several reset boots.
+- **Timing pattern across 50 boots:**
+  - Resets cluster either 7–16 s into boot, or about 30 s–3 min in (last persisted record at 28–180 s in 12 of about 16 cases).
+  - Boots that survive the first few minutes usually run for hours or days, including across suspends.
+- **PMIC reset log** (new `tools/pmic-pon-log.sh`):
+  - PMK8850 (SPMI SID 0) gen3 PON; the PON log lives in SDAM 0x7400/0x7500 (count byte 0x45 = 1 → 2 SDAMs, push pointer 0xA3).
+  - Decoded with the layout of Qualcomm's downstream `drivers/soc/qcom/pmic-pon-log.c`.
+  - All 7 reset cycles in the log are identical: `Reset Trigger: PS_HOLD`, `Reset Type: HARD_RESET`, then `PON Trigger: HARD_RESET`, `PON successful`.
+  - No FAULT_REASON entries (no UVLO/OVLO/OTST3 over-temperature, no PMIC watchdog, no BCL/OCP, no KPDPWR long-press).
+- **Conclusion (confirmed):** the resets are not power, battery, charger, thermal or power-key events. The SoC itself requested a hard reset by dropping PS_HOLD.
+  - A normal `reboot` looks identical in this log, so it cannot say why.
+  - Linux did not request these (no shutdown in the journal, `kernel.panic=0`, qcom_wdt inactive). So the request came from firmware on the SoC: TZ/hypervisor/AOP fatal-error or watchdog handling.
+- **Inferred, not proven:** a hardware bus hang (access to an unclocked or powered-down block) that firmware turns into a reset would match "no log at all". Candidates to watch:
+  - the stuck-clock warnings that occur in every boot: `clk-branch.c:87` from msm/display;
+  - `Failed to enable clk 'com_aux': -16` on the USB-C DP PHY 88e1000.
+  - Unproven.
+- **Next:**
+  - Check for a BIOS newer than UX3407NA.316.
+  - Keep `SyncIntervalSec=5s` and compare the final seconds of each future reset.
+  - Ask the user: AC or battery? Does it happen on Windows?
