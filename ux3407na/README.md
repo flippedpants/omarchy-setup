@@ -83,7 +83,8 @@ Edit the file under `files/`, run `./install.sh`, test, then commit. `verify.sh`
 
 ## Other contents
 
-- `docs/REPORT.md` — full investigation: hardware inventory, failure timeline with log excerpts, causes, upstream fixes, test plan, and dated addenda for each change.
+- `docs/REPORT.md` — readable write-up of every problem: plain-words summary, cause, fix, results, what's still open, maintenance, glossary.
+- `docs/REPORT-investigation-log.md` — the original chronological notes: 20 Nov hardware audit, driver source analysis, per-boot evidence, first test plan.
 - `tools/capture-state.sh` — snapshot of Wi-Fi/Bluetooth/suspend state before and after a test (`sudo` adds GPIO, regulator and wake-source detail).
 - `tools/heartbeat.sh` — writes a timestamp every 2 s; after a forced power-off it shows whether the system was alive after resume.
 - `tools/pmic-pon-log.sh` — (sudo, read-only) decodes the power-management chip's power-on/reset log: why the last ~7 boots started and ended (power key, PS_HOLD, under-voltage, over-temperature, PMIC watchdog...).
