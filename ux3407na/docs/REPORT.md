@@ -515,3 +515,17 @@ The modules are installed to `/usr/lib/modules/7.3.0-77-omarchy/updates/ux3407na
   - Check for a BIOS newer than UX3407NA.316.
   - Keep `SyncIntervalSec=5s` and compare the final seconds of each future reset.
   - Ask the user: AC or battery? Does it happen on Windows?
+
+## Addendum 2026-11-26 (late): CPU load-step tests on battery: negative
+
+- **User report:** resets happen on battery; Linux freezes for a few seconds, then reboots; never on Windows (dual boot). The freeze-then-reboot fits a hard hang followed by a firmware watchdog.
+- **Lead from Omarchy PR #18745** (13 Nov, `omarchy-powerprofiles-floor`): "hard resets seen under load on battery" on a Zenbook A16 X2 Elite, blamed on the performance governor.
+  - Here, the balanced floor (uclamp.min 768) keeps two clusters at ≥3 GHz about 45–50% of the time even at 0.4% average CPU (sampled every 20 ms, sampler unclamped).
+- **Test 1** (23:23–23:25, battery 79%): `openssl speed -multi 18 -seconds 1` × 40, with 2 s gaps. No reset.
+- **Test 2** (23:28–23:31, battery): `tools/burst-load.c`, all 18 cores pinned and switching on and off at the same instant with NEON FMA. About 8000 idle→full steps: 100/100 ms, 20/80, 5/15, 1/4 ms, then 15 s continuous. No reset.
+- **Conclusion:** CPU current steps on battery, at the current frequency limits, do not reproduce the resets. The CPU-floor hypothesis is weakened.
+- **Remaining candidates:** GPU or display activity (session start, browser start) and things that happen only early after boot (device probe, firmware loads, first runtime-PM transitions). Unproven.
+- 2026-11-27: the GPU+CPU test also passed (WebGL Aquarium at 30000 fish, fullscreen, plus `burst-load` on battery): no reset.
+  - No regulator or clock late-cleanup events at about 30 s (`clk_ignore_unused`, `pd_ignore_unused`, no "disabling" lines).
+  - Switched to passive collection: journald `SyncIntervalSec=1s`. The freeze lasts a few seconds before the reset, so 1 s keeps its start.
+  - For each next reset, ask the user about AC or battery and what they were doing.

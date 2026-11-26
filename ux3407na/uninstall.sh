@@ -2,7 +2,7 @@
 # Remove the UX3407NA fixes and restore the default behaviour.
 # Usage: ./uninstall.sh           remove everything
 #        ./uninstall.sh --bt      remove only the Bluetooth modules (sleep fixes stay)
-#        ./uninstall.sh --reset-debug   remove only the journald 5 s sync setting
+#        ./uninstall.sh --reset-debug   remove only the journald 1 s sync setting
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ "$(id -u)" = 0 ] || exec sudo "$HERE/uninstall.sh" "$@"

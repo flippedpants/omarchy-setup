@@ -12,7 +12,7 @@ Tested on Omarchy with `linux-omarchy` 7.3-77, BIOS UX3407NA.316, on 2026-11-23 
 
 Side effects: Wi-Fi takes a few seconds to reconnect after each wake, and a device in the USB-A port cannot wake the laptop (the lid, power key and built-in keyboard still can). The USB-A port otherwise works normally.
 
-Not fixed: random resets, either 7–16 s into boot or minutes into use, with nothing in the log. The kernel is set to freeze on a crash, not reboot, so the reset comes from below Linux (firmware, hypervisor or PMIC). See `docs/REPORT.md`. While this is being diagnosed, `install.sh` also installs `files/etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf`, which makes journald write logs to disk every 5 s instead of every 5 min, so the seconds before a reset are kept. Remove it afterwards with `./uninstall.sh --reset-debug`.
+Not fixed: random resets, either 7–16 s into boot or minutes into use, with nothing in the log. The kernel is set to freeze on a crash, not reboot, so the reset comes from below Linux (firmware, hypervisor or PMIC). See `docs/REPORT.md`. While this is being diagnosed, `install.sh` also installs `files/etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf`, which makes journald write logs to disk every 1 s instead of every 5 min, so the seconds before a reset are kept. Remove it afterwards with `./uninstall.sh --reset-debug`.
 
 ## Install
 

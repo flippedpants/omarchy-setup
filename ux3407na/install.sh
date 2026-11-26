@@ -35,7 +35,7 @@ for m in "$HERE"/bt/modules/*/; do
 done
 /usr/local/lib/ux3407na/bt-check-modules
 
-# 3. Diagnostics (temporary): journald syncs every 5 s so the seconds before a random reset survive.
+# 3. Diagnostics (temporary): journald syncs every 1 s so the seconds before a random reset survive.
 install -Dm644 "$HERE/files/etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf" \
                /etc/systemd/journald.conf.d/50-ux3407na-reset-debug.conf
 systemctl restart systemd-journald
